@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
-from CarConnect.entity.vehicle import Vehicle
-from CarConnect.dao.vehicle_service import VehicleService
-from CarConnect.exceptions.vehicle_not_found_exception import VehicleNotFoundException
+from entity.vehicle import Vehicle
+from dao.vehicle_service import VehicleService
+from exceptions.vehicle_not_found_exception import VehicleNotFoundException
 
 class TestVehicleService(unittest.TestCase):
     def setUp(self):
