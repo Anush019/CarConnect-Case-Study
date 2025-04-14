@@ -1,13 +1,13 @@
-from CarConnect.entity.reservation import Reservation
-from CarConnect.exceptions.invalid_input_exception import InvalidInputException
-from CarConnect.exceptions.reservation_exception import ReservationException
+from entity.reservation import Reservation
+from exceptions.invalid_input_exception import InvalidInputException
+from exceptions.reservation_exception import ReservationException
 
-class ReservationService(Reservation):
+class ReservationService():
     def __init__(self, db):
         self.db = db
 
     def get_reservation_by_id(self, reservation_id):
-        if not isinstance(reservation_id, int):
+        if not reservation_id.isdigit():
             raise InvalidInputException("Reservation ID must be an integer.")
 
         query = "SELECT * FROM Reservation WHERE ReservationID = %s"
@@ -16,10 +16,10 @@ class ReservationService(Reservation):
         if not result:
             raise ReservationException(f"No reservation found with ID: {reservation_id}")
 
-        return Reservation(*result[0])
+        print(result)
 
     def get_reservations_by_customer_id(self, customer_id):
-        if not isinstance(customer_id, int):
+        if not customer_id.isdigit():
             raise InvalidInputException("Customer ID must be an integer.")
 
         query = "SELECT * FROM Reservation WHERE CustomerID = %s"
@@ -38,8 +38,8 @@ class ReservationService(Reservation):
             print(f"Status       : {reservation.status}")
 
     def create_reservation(self, reservation):
-        if not isinstance(reservation, Reservation):
-            raise InvalidInputException("Invalid reservation object.")
+        if not reservation.customer_id.isdigit() or not reservation.vehicle_id.isdigit():
+            raise InvalidInputException("Enter Integer value for Customer and Vehicle")
 
         query = """
             INSERT INTO Reservation (CustomerID, VehicleID, StartDate, EndDate, TotalCost, Status)
@@ -51,7 +51,7 @@ class ReservationService(Reservation):
         ))
 
     def update_reservation(self, reservation_id, status):
-        if not isinstance(reservation_id, int):
+        if not reservation_id.isdigit():
             raise InvalidInputException("Reservation ID must be an integer.")
 
         query = "UPDATE Reservation SET Status = %s WHERE ReservationID = %s"
@@ -61,7 +61,7 @@ class ReservationService(Reservation):
             raise ReservationException(f"No reservation found with ID: {reservation_id}")
 
     def cancel_reservation(self, reservation_id):
-        if not isinstance(reservation_id, int):
+        if not reservation_id.isdigit():
             raise InvalidInputException("Reservation ID must be an integer.")
 
         query = "DELETE FROM Reservation WHERE ReservationID = %s"
