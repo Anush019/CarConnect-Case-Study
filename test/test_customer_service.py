@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from CarConnect.dao.customer_service import CustomerService
-from CarConnect.exceptions.authentication_exception import AuthenticationException
-from CarConnect.exceptions.invalid_input_exception import InvalidInputException
+from dao.customer_service import CustomerService
+from exceptions.authentication_exception import AuthenticationException
+from exceptions.invalid_input_exception import InvalidInputException
 
 class TestCustomerAuthentication(unittest.TestCase):
     def setUp(self):
