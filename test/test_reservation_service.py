@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
 from datetime import date
-from CarConnect.entity.reservation import Reservation
-from CarConnect.dao.reservation_service import ReservationService
+from entity.reservation import Reservation
+from dao.reservation_service import ReservationService
 
 class TestReservationService(unittest.TestCase):
     def setUp(self):
