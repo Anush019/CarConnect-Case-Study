@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
-from CarConnect.entity.admin import Admin
-from CarConnect.dao.admin_service import AdminService
+from entity.admin import Admin
+from dao.admin_service import AdminService
 
 class TestAdminService(unittest.TestCase):
     def setUp(self):
