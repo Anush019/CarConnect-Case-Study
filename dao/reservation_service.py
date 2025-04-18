@@ -1,6 +1,9 @@
 from entity.reservation import Reservation
 from exceptions.invalid_input_exception import InvalidInputException
 from exceptions.reservation_exception import ReservationException
+from datetime import datetime
+from tabulate import tabulate
+
 
 class ReservationService():
     def __init__(self, db):
@@ -12,11 +15,10 @@ class ReservationService():
 
         query = "SELECT * FROM Reservation WHERE ReservationID = %s"
         result = self.db.fetch_query(query, (reservation_id,))
-
         if not result:
             raise ReservationException(f"No reservation found with ID: {reservation_id}")
-
-        print(result)
+        headers = ["ReservationID", "CustomerID", "VehicleID", "StartDate", "EndDate", "TotalCost", "Status"]
+        print(tabulate(result, headers=headers, tablefmt="fancy_grid"))
 
     def get_reservations_by_customer_id(self, customer_id):
         if not customer_id.isdigit():
@@ -28,27 +30,50 @@ class ReservationService():
         if not result:
             raise ReservationException(f"No reservations found for customer ID: {customer_id}")
 
-        for row in result:
-            reservation = Reservation(*row)
-            print(f"Reservation ID: {reservation.reservation_id}")
-            print(f"Vehicle ID   : {reservation.vehicle_id}")
-            print(f"Start Date   : {reservation.start_date}")
-            print(f"End Date     : {reservation.end_date}")
-            print(f"Total Cost   : {reservation.total_cost}")
-            print(f"Status       : {reservation.status}")
+        headers = ["ReservationID", "CustomerID", "VehicleID", "StartDate", "EndDate", "TotalCost", "Status"]
+        print(tabulate(result, headers=headers, tablefmt="fancy_grid"))
 
     def create_reservation(self, reservation):
         if not reservation.customer_id.isdigit() or not reservation.vehicle_id.isdigit():
-            raise InvalidInputException("Enter Integer value for Customer and Vehicle")
+            raise InvalidInputException("Customer ID and Vehicle ID must be integers.")
 
-        query = """
+
+        query = "SELECT Availability, DailyRate FROM Vehicle WHERE VehicleID = %s"
+        result = self.db.fetch_one(query, (reservation.vehicle_id,))
+        if not result:
+            raise ReservationException("Vehicle does not exist.")
+        if result[0] != 1:
+            raise ReservationException("Vehicle is not available for reservation.")
+
+        daily_rate = result[1]
+
+
+        start_date = datetime.strptime(reservation.start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(reservation.end_date, "%Y-%m-%d")
+        number_of_days = (end_date - start_date).days
+        if number_of_days <= 0:
+            raise InvalidInputException("End date must be after start date.")
+
+        total_cost = number_of_days * daily_rate
+
+
+        insert_query = """
             INSERT INTO Reservation (CustomerID, VehicleID, StartDate, EndDate, TotalCost, Status)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
-        self.db.execute_query(query, (
-            reservation.customer_id, reservation.vehicle_id, reservation.start_date,
-            reservation.end_date, reservation.total_cost, reservation.status
+        self.db.execute_query(insert_query, (
+            reservation.customer_id, reservation.vehicle_id,
+            reservation.start_date, reservation.end_date,
+            total_cost, reservation.status
         ))
+
+        self.db.conn.commit()
+
+
+        reservation_id = self.db.cursor.lastrowid
+
+        print(f"Reservation created successfully with ID: {reservation_id}")
+        print(f"Total cost calculated: ₹{total_cost:.2f}")
 
     def update_reservation(self, reservation_id, status):
         if not reservation_id.isdigit():
@@ -78,8 +103,12 @@ class ReservationService():
         """
         results = self.db.fetch_query(query)
         print("\n--- Reservation History Report ---")
-        for row in results:
-            print(row)
+
+        if not results:
+            raise ReservationException("No reservations found.")
+
+        headers = ["Reservation ID", "Customer ID", "Vehicle ID", "Start Date", "End Date", "Status"]
+        print(tabulate(results, headers=headers, tablefmt="fancy_grid"))
 
     def generate_vehicle_utilization_report(self):
         query = """
@@ -90,8 +119,12 @@ class ReservationService():
         """
         results = self.db.fetch_query(query)
         print("\n--- Vehicle Utilization Report ---")
-        for row in results:
-            print(f"Vehicle ID: {row[0]}, Reservations: {row[1]}")
+
+        if not results:
+            raise ReservationException("No reservation data available.")
+
+        headers = ["Vehicle ID", "Total Reservations"]
+        print(tabulate(results, headers=headers, tablefmt="fancy_grid"))
 
     def generate_revenue_report(self):
         query = """
@@ -103,7 +136,30 @@ class ReservationService():
         """
         results = self.db.fetch_query(query)
         print("\n--- Revenue Report ---")
-        for row in results:
-            print(f"Vehicle ID: {row[0]}, Revenue: ₹{row[1]:.2f}")
+
+        if not results:
+            raise ReservationException("No completed reservations found.")
 
 
+        formatted_results = [(row[0], f"₹{row[1]:.2f}") for row in results]
+        headers = ["Vehicle ID", "Revenue"]
+
+        print(tabulate(formatted_results, headers=headers, tablefmt="fancy_grid"))
+
+    def get_pending_reservation(self):
+        query = "SELECT * from Reservation WHERE Status = 'Pending'"
+        rows = self.db.fetch_query(query)
+        if not rows:
+            raise ReservationException("No Pending reservations")
+
+        headers = ["ReservationID", "CustomerID", "VehicleID", "StartDate", "EndDate", "TotalCost", "Status"]
+        print(tabulate(rows, headers=headers, tablefmt="fancy_grid"))
+
+    def get_confirmed_reservation(self):
+        query = "SELECT * from Reservation WHERE Status = 'Confirmed'"
+        rows = self.db.fetch_query(query)
+        if not rows:
+            raise ReservationException("No Confirmed reservations")
+
+        headers = ["ReservationID", "CustomerID", "VehicleID", "StartDate", "EndDate", "TotalCost", "Status"]
+        print(tabulate(rows, headers=headers, tablefmt="fancy_grid"))
