@@ -1,42 +1,106 @@
 import unittest
 from unittest.mock import MagicMock
-from entity.vehicle import Vehicle
 from dao.vehicle_service import VehicleService
+from entity.vehicle import Vehicle
+from exceptions.invalid_input_exception import InvalidInputException
 from exceptions.vehicle_not_found_exception import VehicleNotFoundException
+from exceptions.database_connection_exception import DatabaseConnectionException
 
 class TestVehicleService(unittest.TestCase):
     def setUp(self):
         self.mock_db = MagicMock()
-        self.mock_db.fetch_query.return_value = [
-            (1, "Tesla", "Model S", 2023, "Black", "TS1234", 1, 3500.50, 1),
-            (2, "Toyota", "Camry", 2022, "White", "TN9876", 1, 2500.00, 1)
-        ]
         self.service = VehicleService(self.mock_db)
 
-    def test_add_vehicle(self):
-        vehicle = Vehicle(1, "Tesla", "Model S", 2023, "Black", "TS1234", 1, 3500.50)
-        try:
+
+    def test_get_vehicle_by_id_valid(self):
+        self.mock_db.fetch_query.return_value = [(1, "ModelX", "Tesla", "2023", "Red", "TS12B1234", 1, 3500)]
+        self.service.get_vehicle_by_id("1")
+        self.mock_db.fetch_query.assert_called_once()
+
+    def test_get_vehicle_by_id_not_found(self):
+        self.mock_db.fetch_query.return_value = []
+        with self.assertRaises(VehicleNotFoundException):
+            self.service.get_vehicle_by_id("999")
+
+    def test_get_vehicle_by_id_db_error(self):
+        self.mock_db.fetch_query.side_effect = DatabaseConnectionException("DB down")
+        with self.assertRaises(DatabaseConnectionException):
+            self.service.get_vehicle_by_id("1")
+
+
+    def test_get_available_vehicles_success(self):
+        self.mock_db.fetch_query.return_value = [
+            (1, "ModelX", "Tesla", "2023", "Red", "TS12AB1234", 1, 3500)
+        ]
+        vehicles = self.service.get_available_vehicles()
+        self.assertIsInstance(vehicles, list)
+
+    def test_get_available_vehicles_db_error(self):
+        self.mock_db.fetch_query.side_effect = DatabaseConnectionException("DB error")
+        with self.assertRaises(DatabaseConnectionException):
+            self.service.get_available_vehicles()
+
+
+    def test_add_vehicle_valid(self):
+        vehicle = Vehicle(None, "Model3", "Tesla", "2023", "Blue", "TN12C3456", "1", 4500)
+        self.service.add_vehicle(vehicle)
+        self.mock_db.execute_query.assert_called_once()
+
+    def test_add_vehicle_invalid_registration(self):
+        vehicle = Vehicle(None, "Model3", "Tesla", "2023", "Blue", "INVALID", "1", 4500)
+        with self.assertRaises(InvalidInputException):
             self.service.add_vehicle(vehicle)
-            print("Vehicle added successfully.")
-        except Exception as e:
-            self.fail(f"Vehicle addition failed: {e}")
 
-    def test_update_vehicle(self):
-        try:
-            self.service.update_vehicle(1, 4000.00, 0)
-            print("Vehicle updated successfully.")
-        except Exception as e:
-            self.fail(f"Vehicle update failed: {e}")
+    def test_add_vehicle_invalid_year(self):
+        vehicle = Vehicle(None, "Model3", "Tesla", "23", "Blue", "TN12C3456", "1", 4500)
+        with self.assertRaises(InvalidInputException):
+            self.service.add_vehicle(vehicle)
 
-    def test_get_available_vehicles(self):
-        try:
-            vehicles = self.service.get_available_vehicles()
-            self.assertIsInstance(vehicles, list)
-            print("Available vehicles fetched successfully.")
-        except VehicleNotFoundException:
-            print("No available vehicles found.")
-        except Exception as e:
-            self.fail(f"Fetching available vehicles failed: {e}")
+    def test_add_vehicle_db_exception(self):
+        vehicle = Vehicle(None, "Model3", "Tesla", "2023", "Blue", "TN12B3456", "1", 4500)
+        self.mock_db.execute_query.side_effect = Exception("Insert failed")
+        with self.assertRaises(DatabaseConnectionException):
+            self.service.add_vehicle(vehicle)
+
+
+    def test_update_vehicle_valid(self):
+        self.mock_db.execute_query.return_value = 1
+        self.service.update_vehicle("1", "3000", "1")
+        self.mock_db.execute_query.assert_called_once()
+
+    def test_update_vehicle_invalid_id(self):
+        with self.assertRaises(InvalidInputException):
+            self.service.update_vehicle("abc", "3000", "1")
+
+    def test_update_vehicle_not_found(self):
+        self.mock_db.execute_query.return_value = 0
+        with self.assertRaises(VehicleNotFoundException):
+            self.service.update_vehicle("999", "3000", "1")
+
+    def test_update_vehicle_db_exception(self):
+        self.mock_db.execute_query.side_effect = DatabaseConnectionException("Update failed")
+        with self.assertRaises(DatabaseConnectionException):
+            self.service.update_vehicle("1", "3000", "1")
+
+
+    def test_remove_vehicle_valid(self):
+        self.mock_db.execute_query.return_value = 1
+        self.service.remove_vehicle("1")
+        self.mock_db.execute_query.assert_called_once()
+
+    def test_remove_vehicle_invalid_id(self):
+        with self.assertRaises(InvalidInputException):
+            self.service.remove_vehicle("xyz")
+
+    def test_remove_vehicle_not_found(self):
+        self.mock_db.execute_query.return_value = 0
+        with self.assertRaises(VehicleNotFoundException):
+            self.service.remove_vehicle("999")
+
+    def test_remove_vehicle_db_exception(self):
+        self.mock_db.execute_query.side_effect = DatabaseConnectionException("Delete failed")
+        with self.assertRaises(DatabaseConnectionException):
+            self.service.remove_vehicle("1")
 
 if __name__ == "__main__":
     unittest.main()
