@@ -2,6 +2,8 @@ from entity.admin import Admin
 from exceptions.admin_not_found_exception import AdminNotFoundException
 from exceptions.invalid_input_exception import InvalidInputException
 from exceptions.database_connection_exception import DatabaseConnectionException
+from tabulate import tabulate
+
 
 class AdminService():
     def __init__(self, db):
@@ -15,7 +17,10 @@ class AdminService():
             row = self.db.fetch_query(query, (admin_id,))
             if not row:
                 raise AdminNotFoundException(f"Admin with ID {admin_id} not found.")
-            print("The Admin is:",row)
+
+            headers = ["AdminID", "Name", "Email", "Username", "Password", "Role", "JoinDate"]
+            print(tabulate([row[0]], headers=headers, tablefmt="fancy_grid"))
+
         except DatabaseConnectionException as e:
             raise DatabaseConnectionException(f"Database error: {str(e)}")
 
@@ -27,11 +32,12 @@ class AdminService():
             row = self.db.fetch_query(query, (username,))
             if not row:
                 raise AdminNotFoundException(f"No admin found with username: {username}")
-            print("The user is:",row)
+            headers = ["AdminID", "Name", "Email", "Username", "Password", "Role", "JoinDate"]
+            print(tabulate([row[0]], headers=headers, tablefmt="fancy_grid"))
         except AdminNotFoundException:
             raise AdminNotFoundException(f"No admin found with username: {username}")
         except DatabaseConnectionException as e:
-            raise DatabaseConnectionException(f"Database error: {str(e)}")
+            raise DatabaseConnectionException(f"Database error: {str(e)}")
 
     def register_admin(self, admin):
         if not all([admin.first_name.strip(), admin.last_name.strip(), admin.email.strip(),
@@ -84,3 +90,21 @@ class AdminService():
                 raise AdminNotFoundException(f"Admin with ID {admin_id} not found.")
         except DatabaseConnectionException as e:
             raise DatabaseConnectionException(f"Failed to delete admin: {str(e)}")
+
+    def authenticate_admin(self, username, password):
+        if not isinstance(username, str) or not username.strip():
+            raise InvalidInputException("Username must be a non-empty string.")
+        if not isinstance(password, str) or not password.strip():
+            raise InvalidInputException("Password must be a non-empty string.")
+
+        query = "SELECT FirstName, Role FROM Admin WHERE Username = %s AND Password = %s"
+        results = self.db.fetch_query(query, (username, password))
+
+        if results and len(results) > 0:
+            first_name, role = results[0]  # get the first row
+            print("Successfully logged in!")
+            print(f"\nWelcome, {first_name} ({role})")
+            return role
+        else:
+            raise AuthenticationException("Invalid admin credentials.")
+
