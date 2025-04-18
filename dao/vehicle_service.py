@@ -3,6 +3,7 @@ from exceptions.vehicle_not_found_exception import VehicleNotFoundException
 from exceptions.invalid_input_exception import InvalidInputException
 from exceptions.database_connection_exception import DatabaseConnectionException
 import re
+from tabulate import tabulate
 
 class VehicleService():
     def __init__(self, db):
@@ -14,7 +15,10 @@ class VehicleService():
             row = self.db.fetch_query(query, (vehicle_id,))
             if not row:
                 raise VehicleNotFoundException(f"No vehicle found with ID: {vehicle_id}")
-            print("The vehicle is: ",row)
+
+            headers = ["VehicleID", "Model", "Make", "Year", "Color", "RegistrationNumber", "Availability", "DailyRate"]
+            print(tabulate([row[0]], headers=headers, tablefmt="fancy_grid"))
+
         except DatabaseConnectionException as e:
             raise DatabaseConnectionException(f"Database error: {str(e)}")
 
@@ -22,12 +26,18 @@ class VehicleService():
         try:
             query = "SELECT * FROM Vehicle WHERE Availability = 1"
             rows = self.db.fetch_query(query)
+            if not rows:
+                raise VehicleNotFoundException("No available vehicles found.")
+            headers = ["VehicleID", "Model", "Make", "Year", "Color", "RegistrationNumber", "Availability", "DailyRate"]
+            print(tabulate(rows, headers=headers, tablefmt="fancy_grid"))
             return rows
+
         except DatabaseConnectionException as e:
             raise DatabaseConnectionException(f"Database error: {str(e)}")
 
+
     def add_vehicle(self, vehicle):
-        pattern = r'^[A-Za-z]{2}\s?[0-9]{2}\s?[A-Za-z]{2}\s?[0-9]{4}$'
+        pattern = r'^[A-Za-z]{2}\s?[0-9]{2}\s?[A-Za-z]{1}\s?[0-9]{4}$'
         def is_valid_format(text):
             return bool(re.match(pattern, text))
         if not is_valid_format(vehicle.registration_number):
@@ -71,3 +81,5 @@ class VehicleService():
                 raise VehicleNotFoundException(f"No vehicle found with ID: {vehicle_id}")
         except DatabaseConnectionException as e:
             raise DatabaseConnectionException(f"Failed to delete vehicle: {str(e)}")
+
+
